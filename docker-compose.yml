@@ -1,0 +1,16 @@
+services:
+  beacon:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      DATA_DIR: /data
+      ADMIN_USER: admin
+      ADMIN_PASSWORD: change-me-please
+      # PUBLIC_URL: https://status.example.com
+    volumes:
+      - beacon-data:/data
+    restart: unless-stopped
+
+volumes:
+  beacon-data:
