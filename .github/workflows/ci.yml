@@ -17,8 +17,9 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        # npm install (not npm ci): the lockfile is generated on Windows and
-        # npm has a bug dropping platform-specific optional deps with npm ci.
+        # No committed lockfile: on Windows-authored lockfiles npm omits
+        # platform-specific native deps (rollup). A lockfile would also
+        # break Mac/Linux contributors. npm install resolves per-platform.
         run: npm install
 
       - name: Typecheck
