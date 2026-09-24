@@ -431,6 +431,21 @@ h1 {
   border-bottom: none;
 }
 
+.incident-diag {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.flag {
+  color: var(--amber, #d29922);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-left: 6px;
+}
+
 /* ---------- forms ---------- */
 .field {
   display: flex;

@@ -26,3 +26,24 @@ export function fmtDuration(ms: number): string {
 export function fmtTime(ts: number): string {
   return new Date(ts).toLocaleString()
 }
+
+export function parseDiagnosis(raw: string | null | undefined): {
+  summary: string
+  confidence: string
+  attackFlagged: boolean
+  tags: string[]
+} | null {
+  if (!raw) return null
+  try {
+    const d = JSON.parse(raw) as Record<string, unknown>
+    if (typeof d.summary !== 'string') return null
+    return {
+      summary: d.summary,
+      confidence: typeof d.confidence === 'string' ? d.confidence : 'medium',
+      attackFlagged: d.attackFlagged === true,
+      tags: Array.isArray(d.tags) ? d.tags.filter((t): t is string => typeof t === 'string') : [],
+    }
+  } catch {
+    return null
+  }
+}

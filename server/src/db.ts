@@ -61,6 +61,10 @@ const MIGRATIONS: string[] = [
   CREATE INDEX IF NOT EXISTS idx_checks_monitor ON checks (monitor_id, checked_at DESC);
   CREATE INDEX IF NOT EXISTS idx_events_monitor ON events (monitor_id, started_at DESC);
   `,
+  // Migration 2: incident diagnostics (AI incident reporter)
+  `
+  ALTER TABLE events ADD COLUMN diagnosis TEXT;
+  `,
 ]
 
 export function getDB(): BeaconDB {

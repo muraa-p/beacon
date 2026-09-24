@@ -13,7 +13,14 @@ import {
 } from './auth.js'
 import { getRuntimeState, rescheduleMonitor, type MonitorRow } from './checker.js'
 import { getSettings, saveSettings } from './settings.js'
-import { isHttpUrl, UPTIME_WINDOWS, uptimePercent, type CheckRow, type UptimeWindow } from './utils.js'
+import {
+  isHttpUrl,
+  parseDiagnosis,
+  UPTIME_WINDOWS,
+  uptimePercent,
+  type CheckRow,
+  type UptimeWindow,
+} from './utils.js'
 
 function monitorPayload(body: unknown): { error?: string; value?: MonitorInput } {
   if (!body || typeof body !== 'object') return { error: 'Invalid payload' }
@@ -130,17 +137,17 @@ export function apiRouter(db: BeaconDB): Router {
     })
     const incidents = db
       .prepare(
-        `SELECT e.id, e.kind, e.message, e.started_at, e.resolved_at, m.name AS monitor_name
+        `SELECT e.id, e.kind, e.message, e.started_at, e.resolved_at, e.diagnosis, m.name AS monitor_name
          FROM events e JOIN monitors m ON m.id = e.monitor_id
          WHERE m.enabled = 1 ORDER BY e.started_at DESC LIMIT 30`,
       )
-      .all() as { id: number; kind: string; message: string; started_at: number; resolved_at: number | null; monitor_name: string }[]
+      .all() as { id: number; kind: string; message: string; started_at: number; resolved_at: number | null; diagnosis: string | null; monitor_name: string }[]
     res.json({
       title: settings.page.title,
       description: settings.page.description,
       generatedAt: now,
       monitors: data,
-      incidents,
+      incidents: incidents.map((e) => ({ ...e, diagnosis: parseDiagnosis(e.diagnosis) })),
     })
   })
 
@@ -280,7 +287,7 @@ export function apiRouter(db: BeaconDB): Router {
     }
     const events = db
       .prepare('SELECT * FROM events WHERE monitor_id = ? ORDER BY started_at DESC, id DESC LIMIT 100')
-      .all(id) as { id: number; monitor_id: number; kind: string; message: string; started_at: number; resolved_at: number | null }[]
+      .all(id) as { id: number; monitor_id: number; kind: string; message: string; started_at: number; resolved_at: number | null; diagnosis: string | null }[]
     res.json({ events })
   })
 

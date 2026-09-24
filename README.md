@@ -15,6 +15,8 @@ Beacon watches your websites and APIs, records their uptime, and publishes a bea
 - 🌐 **Public status page** — a clean, mobile-friendly page served at `/`
 - 🔔 **Notifications** — webhook (any JSON endpoint) + SMTP email alerts on down/recover
 - 📈 **Incident timeline** — automatic down/up events with durations
+- 🧠 **AI incident reporter** — every outage gets automatic forensics: DNS, TLS, certificate expiry, HTTP, and flapping analysis, summarized as *"what we think happened"* — with an optional AI-written report if you add an `OPENAI_API_KEY`
+- 🎯 **Attack forensics** — HTTP 403/WAF-challenge and on-off flapping patterns are flagged as *possible attack signals* on incidents
 - 🔐 **Single-admin auth** — sessions, PBKDF2-hashed passwords, no accounts-as-a-service
 - 🐳 **One-command self-host** — `docker compose up`
 - 💾 **Zero external dependencies** — SQLite built into Node, one volume, that's it
@@ -68,6 +70,22 @@ All configuration is via environment variables (see `.env.example`):
 | `ADMIN_USER` | `admin` | First admin username (first run only) |
 | `ADMIN_PASSWORD` | random | First admin password (first run only) |
 | `PUBLIC_URL` | `http://localhost:8080` | Base URL used in notification links |
+| `OPENAI_API_KEY` | – | Optional: enables AI-written incident reports alongside rule-based diagnoses |
+| `LLM_MODEL` | `gpt-4o-mini` | Model used for AI incident reports (only when key is set) |
+
+## Incident intelligence
+
+When a monitor goes down, Beacon runs a short forensic pass and stores the result on the incident:
+
+- **DNS probe** — does the hostname still resolve?
+- **TLS/certificate probe** (HTTPS) — handshake health and days-to-expiry
+- **HTTP probe** — what the server actually answered (4xx/5xx/403/timeout)
+- **Recovery probe** — did it recover moments later (transient!)
+- **History pattern** — success rate before the failure and rapid on-off *flapping*
+
+These are combined into a plain-language diagnosis with a confidence level, shown on the public status page and in the dashboard. Diagnoses that smell like an attack — HTTP 403 WAF challenges or flapping — are flagged with a ⚠ *possible attack* badge. Notifications include the diagnosis, so your phone tells you *what likely broke*, not just *that* something broke.
+
+Everything is rule-based and runs locally — zero external calls. Set an `OPENAI_API_KEY` to have the diagnosis handed to an LLM for a polished one-paragraph incident report.
 
 ## Architecture
 
@@ -79,6 +97,7 @@ beacon/
 │       ├── db.ts          # SQLite (node:sqlite) + migrations
 │       ├── auth.ts        # PBKDF2 passwords + sessions
 │       ├── checker.ts     # background uptime checker
+│       ├── diagnostics.ts # incident forensics + diagnosis scoring
 │       ├── notify.ts      # webhook + email alerts
 │       ├── settings.ts    # app settings storage
 │       ├── api.ts         # REST API (JSON)

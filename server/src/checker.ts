@@ -1,6 +1,7 @@
 import { getDB, asRows, asRow, type BeaconDB } from './db.js'
 import { loadConfig } from './config.js'
 import { sendNotifications } from './notify.js'
+import { runDiagnostics } from './diagnostics.js'
 import { fmtDuration } from './utils.js'
 
 export interface MonitorRow {
@@ -162,10 +163,33 @@ async function runCheck(db: BeaconDB, monitor: MonitorRow): Promise<void> {
     const cfg = loadConfig()
     if (newStatus === 'down') {
       s.lastDownAt = Date.now()
-      db.prepare(
-        'INSERT INTO events (monitor_id, kind, message, started_at, resolved_at) VALUES (?, ?, ?, ?, NULL)',
-      ).run(monitor.id, 'DOWN', `${monitor.name} went DOWN — ${reason}`, Date.now())
-      void sendNotifications(db, cfg, 'DOWN', monitor.name, `Reason: ${reason}\nURL: ${monitor.url}`)
+      const result = db
+        .prepare(
+          'INSERT INTO events (monitor_id, kind, message, started_at, resolved_at, diagnosis) VALUES (?, ?, ?, ?, NULL, NULL)',
+        )
+        .run(monitor.id, 'DOWN', `${monitor.name} went DOWN — ${reason}`, Date.now())
+      const eventId = Number(result.lastInsertRowid)
+      // Run incident forensics off the hot path: DNS/TLS/HTTP probes, cert
+      // expiry, flapping analysis. Store the diagnosis on the event, then
+      // notify with a "what we think happened" report.
+      void (async () => {
+        try {
+          const diag = await runDiagnostics(db, monitor)
+          db.prepare('UPDATE events SET diagnosis = ? WHERE id = ?').run(JSON.stringify(diag), eventId)
+          const attackNote = diag.attackFlagged ? ' ⚠ Possible attack pattern.' : ''
+          const report = diag.report ? `\n\n${diag.report}` : ''
+          await sendNotifications(
+            db,
+            cfg,
+            'DOWN',
+            monitor.name,
+            `Reason: ${reason}\nURL: ${monitor.url}\n\nWhat we think happened: ${diag.summary}${attackNote}${report}`,
+          )
+        } catch (err) {
+          console.warn('[diagnostics] failed:', (err as Error).message)
+          await sendNotifications(db, cfg, 'DOWN', monitor.name, `Reason: ${reason}\nURL: ${monitor.url}`)
+        }
+      })()
     } else {
       const resolvedAt = Date.now()
       const open = db

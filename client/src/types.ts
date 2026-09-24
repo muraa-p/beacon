@@ -46,6 +46,15 @@ export interface MonitorEvent {
   message: string
   started_at: number
   resolved_at: number | null
+  diagnosis: string | null
+}
+
+/** Parsed shape of the JSON stored on events.diagnosis. */
+export interface DiagnosisSummary {
+  summary: string
+  confidence: string
+  attackFlagged: boolean
+  tags: string[]
 }
 
 export interface Webhook {

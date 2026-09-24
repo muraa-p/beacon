@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../api'
 import type { Check, Monitor, MonitorEvent } from '../types'
-import { fmtDuration, fmtRelative, fmtTime, fmtUptime } from '../utils'
+import { fmtDuration, fmtRelative, fmtTime, fmtUptime, parseDiagnosis } from '../utils'
 import StatusBadge from './StatusBadge'
 
 interface Props {
@@ -132,20 +132,29 @@ export default function MonitorDetail({ id, onBack, onNotice }: Props) {
         {events.length === 0 ? (
           <p className="muted">No incidents. 🎉</p>
         ) : (
-          events.map((e) => (
-            <div key={e.id} className="incident">
-              <span className={e.kind === 'DOWN' ? 'dot red' : 'dot green'} />
-              <div>
-                <div>{e.message}</div>
-                <div className="muted small">
-                  {fmtTime(e.started_at)} ·{' '}
-                  {e.resolved_at
-                    ? `resolved after ${fmtDuration(e.resolved_at - e.started_at)}`
-                    : 'ongoing'}
+          events.map((e) => {
+            const diag = parseDiagnosis(e.diagnosis)
+            return (
+              <div key={e.id} className="incident">
+                <span className={e.kind === 'DOWN' ? 'dot red' : 'dot green'} />
+                <div>
+                  <div>{e.message}</div>
+                  {diag && (
+                    <div className="incident-diag">
+                      🧠 {diag.summary}
+                      {diag.attackFlagged && <span className="flag">⚠ possible attack</span>}
+                    </div>
+                  )}
+                  <div className="muted small">
+                    {fmtTime(e.started_at)} ·{' '}
+                    {e.resolved_at
+                      ? `resolved after ${fmtDuration(e.resolved_at - e.started_at)}`
+                      : 'ongoing'}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))
+            )
+          })
         )}
       </div>
 

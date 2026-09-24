@@ -2,7 +2,16 @@ import express, { type Router } from 'express'
 import { asRows, type BeaconDB } from './db.js'
 import { getRuntimeState, type MonitorRow } from './checker.js'
 import { getSettings } from './settings.js'
-import { fmtDuration, fmtRelative, fmtUptime, UPTIME_WINDOWS, uptimePercent, type CheckRow, type UptimeWindow } from './utils.js'
+import {
+  fmtDuration,
+  fmtRelative,
+  fmtUptime,
+  parseDiagnosis,
+  UPTIME_WINDOWS,
+  uptimePercent,
+  type CheckRow,
+  type UptimeWindow,
+} from './utils.js'
 
 export function statusPageRouter(db: BeaconDB): Router {
   const router = express.Router()
@@ -38,7 +47,7 @@ export function statusPageRouter(db: BeaconDB): Router {
 
     const incidents = db
       .prepare(
-        `SELECT e.id, e.kind, e.message, e.started_at, e.resolved_at, m.name AS monitor_name
+        `SELECT e.id, e.kind, e.message, e.started_at, e.resolved_at, e.diagnosis, m.name AS monitor_name
          FROM events e JOIN monitors m ON m.id = e.monitor_id
          WHERE m.enabled = 1 ORDER BY e.started_at DESC LIMIT 30`,
       )
@@ -48,6 +57,7 @@ export function statusPageRouter(db: BeaconDB): Router {
       message: string
       started_at: number
       resolved_at: number | null
+      diagnosis: string | null
       monitor_name: string
     }[]
 
@@ -75,6 +85,7 @@ interface RenderArgs {
     message: string
     started_at: number
     resolved_at: number | null
+    diagnosis: string | null
     monitor_name: string
   }[]
   allUp: boolean
@@ -129,11 +140,19 @@ function renderStatusPage({ settings, rows, incidents, allUp, now }: RenderArgs)
             const ongoing = e.resolved_at === null
             const color = e.kind === 'DOWN' ? red : green
             const dur = e.resolved_at === null ? 'ongoing' : fmtDuration(e.resolved_at - e.started_at)
+            const diag = parseDiagnosis(e.diagnosis)
             return `
         <div class="incident">
           <span class="dot" style="background:${color}"></span>
           <div>
             <div class="incident-title">${esc(e.message)}</div>
+            ${
+              diag
+                ? `<div class="incident-diag">🧠 ${esc(diag.summary)}${
+                    diag.attackFlagged ? ' <span class="flag">⚠ possible attack</span>' : ''
+                  }</div>`
+                : ''
+            }
             <div class="incident-meta">Started ${fmtRelative(e.started_at, now)} · ${
               ongoing ? 'Ongoing' : `resolved after ${dur}`
             }</div>
@@ -189,6 +208,8 @@ function renderStatusPage({ settings, rows, incidents, allUp, now }: RenderArgs)
   .incident .dot { margin-top: 6px; }
   .incident-title { font-size: 14px; }
   .incident-meta { font-size: 13px; color: ${muted}; }
+  .incident-diag { font-size: 13px; color: ${muted}; margin-top: 4px; }
+  .flag { color: ${amber}; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .03em; }
   .empty { color: ${muted}; font-size: 14px; }
   footer { color: ${muted}; font-size: 13px; text-align: center; margin-top: 40px; }
   footer a { color: ${muted}; }
