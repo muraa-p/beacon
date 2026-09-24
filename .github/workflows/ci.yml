@@ -17,7 +17,9 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        # npm install (not npm ci): the lockfile is generated on Windows and
+        # npm has a bug dropping platform-specific optional deps with npm ci.
+        run: npm install
 
       - name: Typecheck
         run: npm run typecheck
