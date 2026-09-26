@@ -8,6 +8,11 @@ Beacon watches your websites and APIs, records their uptime, and publishes a bea
 🟢  All Systems Operational
 ```
 
+<p align="center">
+  <img src="docs/status-page.png" alt="Beacon public status page" width="820">
+</p>
+
+*The public status page, with live uptime windows and latency per service.*
 ## Features
 
 - ⏱ **Uptime monitoring** — HTTP(S) checks on an interval you choose (GET / HEAD / POST)
