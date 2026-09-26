@@ -20,6 +20,12 @@ COPY --from=build /app/server ./server
 COPY --from=build /app/client/dist ./client/dist
 RUN npm install --omit=dev && npm cache clean --force
 
+# The named volume mounted at /data is created root-owned, but the container runs
+# as the unprivileged "node" user. Without this, SQLite fails on first boot with
+# "unable to open database file" (errcode 14). Creating the directory here also
+# means a fresh named volume inherits the right ownership.
+RUN mkdir -p /data && chown -R node:node /data
+
 USER node
 EXPOSE 8080
 VOLUME ["/data"]
